@@ -1,0 +1,7 @@
+requests>=2.31.0
+beautifulsoup4>=4.15.0
+lxml>=5.0.0
+weasyprint>=69.0
+pypdf>=6.0.0
+reportlab>=5.0.0
+genanki>=0.13.0

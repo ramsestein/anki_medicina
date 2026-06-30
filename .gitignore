@@ -1,0 +1,36 @@
+# Entorno virtual
+.venv/
+venv/
+env/
+
+# Archivos de entorno
+.env
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# Datos generados (grandes) - opcional, comentar si se quieren trackear
+data/preguntas_mir.jsonl
+data/preguntas_medicas.jsonl
+data/.generation_state.json
+
+# Mazos Anki generados
+tarjetas_anki/*.apkg
+
+# PDFs generados por fusión
+docs/examen_mir/Examen_MIR_*.pdf
+
+# Caché del crawler
+docs/.crawler_cache/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
