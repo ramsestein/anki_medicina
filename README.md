@@ -1,103 +1,126 @@
 # 🏥 MIR-Anki
 
-**Pipeline para generar flashcards tipo test MIR en formato Anki** a partir de exámenes oficiales del MIR y documentación médica.
+**Flashcards tipo test MIR para Anki** — listas para descargar e importar.
 
-El resultado final son archivos **`.apkg`** listos para importar directamente en Anki, con imágenes embebidas, diseño bonito y respuesta correcta resaltada.
+Este proyecto contiene **mazos de Anki con preguntas de examen MIR** ya preparadas, con imágenes incluidas y diseño bonito. Además, incluye un *pipeline* para generar nuevas preguntas desde documentación médica usando inteligencia artificial.
 
 ---
 
-## ✨ ¿Qué hace?
+## 🎯 ¿Solo quieres estudiar? Descarga las flashcards ya listas
 
-1. **Crawlea** documentación médica de fuentes como NICE, MSD Manuals, etc. y las guarda como PDFs
-2. **Convierte** los exámenes MIR originales (cuadernos de preguntas + cuadernos de imágenes + respuestas) en PDFs fusionados con hoja de respuestas
-3. **Extrae** las 927+ preguntas MIR reales desde los PDFs fusionados a un archivo JSONL estructurado
-4. **Genera** nuevas preguntas tipo test desde la documentación médica usando **DeepSeek** (API), imitando el estilo de las preguntas MIR reales mediante *few-shot learning*
-5. **Convierte** los JSONL a mazos **`.apkg`** de Anki con diseño bonito e imágenes incluidas
+Si solo quieres usar las flashcards sin complicarte con informática:
+
+1. **Descarga** este proyecto: ve a https://github.com/ramsestein/anki_medicina, haz clic en el botón verde **`<> Code`** → **`Download ZIP`**, y descomprime el archivo en tu ordenador.
+2. **Abre Anki** (si no lo tienes, descárgalo gratis desde https://apps.ankiweb.net).
+3. En Anki, ve a **Archivo → Importar** y selecciona el archivo que quieras de la carpeta `tarjetas_anki/`:
+   - **`preguntas_mir.apkg`** → 927 preguntas de exámenes MIR reales (2021-2025), con imágenes
+   - **`preguntas_medicas.apkg`** → Preguntas generadas desde documentación médica
+4. ¡A estudiar! 🎉
+
+> Los mazos ya están procesados y listos para usar. Conforme generemos más preguntas nuevas, se añadirán más archivos `.apkg` a la carpeta `tarjetas_anki/`.
+
+---
+
+## ✨ ¿Qué hace el proyecto completo?
+
+Si además quieres **generar tus propias preguntas** usando inteligencia artificial, el pipeline completo hace esto:
+
+1. **Descarga** documentación médica de fuentes como NICE, MSD Manuals, etc.
+2. **Convierte** los exámenes MIR originales en PDFs fusionados
+3. **Extrae** las preguntas MIR reales a un formato estructurado
+4. **Genera** nuevas preguntas tipo test desde la documentación médica usando **DeepSeek** (una IA), imitando el estilo de las preguntas MIR
+5. **Convierte** todo a mazos `.apkg` para Anki con diseño bonito e imágenes
 
 ---
 
 ## 📁 Estructura del proyecto
 
 ```
-anki-mir/
-├── orquestador.sh          # Script orquestador (Linux/macOS)
-├── orquestador.ps1         # Script orquestador (Windows PowerShell)
-├── requirements.txt        # Dependencias Python
-├── .env                    # API key de DeepSeek (no versionar)
-├── .gitignore
-├── README.md
+anki-medicina/
+├── tarjetas_anki/           # 🃏 MAZOS LISTOS PARA IMPORTAR EN ANKI
+│   ├── preguntas_mir.apkg       # 927 preguntas MIR con imágenes
+│   └── preguntas_medicas.apkg   # Preguntas generadas por IA
 │
-├── src/
-│   ├── crawl_docs.py              # Crawler de documentación médica
-│   ├── convert_mir_to_pdf.py      # Fusión de PDFs MIR originales
-│   ├── extract_preguntas.py       # Extracción de preguntas a JSONL
-│   ├── generate_preguntas_llm.py  # Generación LLM con DeepSeek
-│   └── convert_to_anki.py         # Conversor JSONL → .apkg para Anki
-│
-├── data/
-│   ├── preguntas_mir.jsonl      # 927 preguntas extraídas del MIR
-│   ├── preguntas_medicas.jsonl  # Preguntas generadas por DeepSeek
-│
-├── tarjetas_anki/
-│   ├── preguntas_mir.apkg       # Mazo Anki (con imágenes)
-│   ├── preguntas_medicas.apkg   # Mazo Anki
-│   ├── .generation_state.json   # Estado de progreso (generación LLM)
-│   └── exam_mir_original/       # PDFs originales del MIR
-│       ├── Cuaderno_2025_M_0_C.pdf   # Cuaderno de preguntas
-│       ├── Cuaderno_2025_M_I.pdf     # Cuaderno de imágenes
-│       └── respuestas_2025.txt       # Hoja de respuestas
-│
-├── docs/
-│   ├── examen_mir/          # PDFs fusionados (Examen_MIR_202X.pdf)
-│   ├── nice/                # PDFs crawleados de NICE
-│   ├── msd-manual/          # PDFs crawleados de MSD Manuals
-│   └── .crawler_cache/      # Caché del crawler
-│
-└── list_links.txt           # URLs para el crawler
+├── src/                     # 🔧 Código (solo si quieres generar más)
+├── data/                    # 📊 Datos intermedios
+├── docs/                    # 📄 PDFs de documentación médica
+├── orquestador.sh           # Script para Linux/Mac
+├── orquestador.ps1          # Script para Windows
+├── requirements.txt         # Dependencias
+└── README.md                # Este archivo
 ```
+
+> **👆 Si solo quieres estudiar**, solo necesitas la carpeta `tarjetas_anki/`. Ignora el resto.
 
 ---
 
-## 🚀 Uso rápido
+## 🚀 Para quien quiera generar más preguntas (conocimientos básicos de informática)
 
-### 1. Preparar el entorno
+Si ya tienes el proyecto descargado y quieres generar nuevas preguntas desde la documentación médica usando IA:
 
+### 1. Requisitos
+
+Necesitas tener instalado:
+- **Python 3.10 o superior** (descárgalo de https://www.python.org/downloads/)
+- **Git** (opcional, descárgalo de https://git-scm.com/downloads)
+
+### 2. Descargar el proyecto
+
+**Opción A — Con Git (recomendado):**
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate   # Linux/macOS
-# .venv\Scripts\Activate.ps1  # Windows
-pip install -r requirements.txt
+git clone https://github.com/ramsestein/anki_medicina.git
+cd anki_medicina
 ```
 
-### 2. Configurar API key (solo para generación LLM)
+**Opción B — Sin Git:**
+1. Ve a https://github.com/ramsestein/anki_medicina
+2. Haz clic en el botón verde **`<> Code`** → **`Download ZIP`**
+3. Descomprime el archivo en una carpeta
 
-Crea un archivo `.env` en la raíz:
+### 3. Ejecutar el orquestador (menú interactivo)
 
-```
-DEEPSEEK_API_KEY=sk-tu-api-key-de-deepseek
-```
-
-### 3. Ejecutar el pipeline
-
-**Linux/macOS:**
+**En Linux o Mac:**
 ```bash
-# Menú interactivo
 ./orquestador.sh
-
-# O por comando directo
-./orquestador.sh all              # Todo el pipeline
-./orquestador.sh crawl            # Solo crawlear docs
-./orquestador.sh convert          # Solo convertir PDFs
-./orquestador.sh extract          # Solo extraer preguntas
-./orquestador.sh generate --reset # Solo generar con LLM
-./orquestador.sh anki             # Solo convertir JSONL a .apkg
 ```
 
-**Windows PowerShell:**
+**En Windows:** haz doble clic en `orquestador.ps1` o ejecuta en PowerShell:
 ```powershell
 .\orquestador.ps1
-# o
-.\orquestador.ps1 -Step all
+```
+
+El menú te guiará paso a paso. La primera vez instalará todo automáticamente.
+
+### 4. Pasos individuales (para quien quiera control fino)
+
+```bash
+# 1. Crawlear documentación médica
+python3 src/crawl_docs.py
+
+# 2. Convertir exámenes MIR originales a PDF
+python3 src/convert_mir_to_pdf.py
+
+# 3. Extraer preguntas MIR a JSONL
+python3 src/extract_preguntas.py
+
+# 4. Generar preguntas con IA (DeepSeek) — necesitas API key
+python3 src/generate_preguntas_llm.py --reset
+
+# 5. Convertir JSONL a mazo .apkg para Anki
+python3 src/convert_to_anki.py
+```
+
+### 5. (Opcional) Configurar API key de DeepSeek
+
+Para el paso 4 (generar preguntas con IA), necesitas una clave de API de DeepSeek:
+1. Ve a https://platform.deepseek.com/ y crea una cuenta
+2. Ve a la sección de API Keys y genera una nueva clave
+3. Crea un archivo llamado `.env` en la carpeta del proyecto con este contenido:
+   ```
+   DEEPSEEK_API_KEY=sk-pon-aqui-tu-clave
+   ```
+
+> 📌 **¿Cuánto cuesta?** Generar preguntas con DeepSeek cuesta aproximadamente **20 céntimos de dólar** por cada 100 PDFs procesados. Es muy económico.
 ```
 
 ---
@@ -166,14 +189,14 @@ Genera archivos `.apkg` en `tarjetas_anki/` listos para importar en Anki (**Arch
 
 ---
 
-## 📊 Datos generados
+## 📊 Datos disponibles
 
-| Archivo | Descripción |
-|---|---|
-| `data/preguntas_mir.jsonl` | 927 preguntas extraídas de exámenes MIR 2021-2025 |
-| `data/preguntas_medicas.jsonl` | Preguntas generadas por DeepSeek desde documentación médica |
-| `tarjetas_anki/preguntas_mir.apkg` | Mazo Anki con imágenes (39 MB) — importar directamente |
-| `tarjetas_anki/preguntas_medicas.apkg` | Mazo Anki de preguntas generadas |
+| Archivo | Descripción | ¿Necesitas hacer algo? |
+|---|---|---|
+| `tarjetas_anki/preguntas_mir.apkg` | **927 preguntas** de exámenes MIR 2021-2025, con 75 imágenes | ✅ **Ya listo** — solo importar en Anki |
+| `tarjetas_anki/preguntas_medicas.apkg` | Preguntas generadas por DeepSeek desde documentación médica | ⏳ **En crecimiento** — se añadirán más conforme las generemos |
+| `data/preguntas_mir.jsonl` | Datos intermedios de las 927 preguntas MIR | 🔧 Solo si quieres regenerar |
+| `data/preguntas_medicas.jsonl` | Datos intermedios de las preguntas generadas | 🔧 Solo si quieres regenerar |
 
 ### Formato JSONL
 
