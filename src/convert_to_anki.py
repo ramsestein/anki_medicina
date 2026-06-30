@@ -15,14 +15,10 @@ Genera archivos .apkg listos para importar en Anki con:
 """
 
 import argparse
-import base64
-import html
 import json
 import logging
 import os
 import re
-import tempfile
-import uuid
 from pathlib import Path
 from datetime import datetime
 
@@ -50,10 +46,62 @@ CARD_CSS = """
   padding: 20px;
   max-width: 720px;
   margin: 0 auto;
-  background: #ffffff;
 }
 
-/* Encabezado */
+/* ── Night mode (Anki oscuro) ── */
+.nightMode .card {
+  color: #e0e0e0;
+}
+.nightMode .question {
+  background: #2d2d2d !important;
+  border-left-color: #5dade2 !important;
+  color: #e0e0e0 !important;
+}
+.nightMode .option-item {
+  background: #333 !important;
+  border-color: #555 !important;
+  color: #e0e0e0 !important;
+}
+.nightMode .option-item:hover {
+  background: #3a3a3a !important;
+  border-color: #5dade2 !important;
+}
+.nightMode .option-label {
+  background: #555 !important;
+  color: #ccc !important;
+}
+.nightMode .correct-answer {
+  background: #1a3a2a !important;
+  border-color: #27ae60 !important;
+}
+.nightMode .correct-answer .label {
+  color: #2ecc71 !important;
+}
+.nightMode .correct-answer .answer-text {
+  color: #58d68d !important;
+}
+.nightMode .reference {
+  background: #2d2d2d !important;
+  border-color: #555 !important;
+  color: #999 !important;
+}
+.nightMode .reference strong {
+  color: #bbb !important;
+}
+.nightMode .header {
+  color: #999 !important;
+  border-bottom-color: #5dade2 !important;
+}
+.nightMode .badge-year {
+  background: #444 !important;
+  color: #ccc !important;
+}
+.nightMode .image-container {
+  background: #2d2d2d !important;
+  border-color: #555 !important;
+}
+
+/* ── Encabezado ── */
 .header {
   font-size: 13px;
   color: #7f8c8d;
@@ -75,18 +123,18 @@ CARD_CSS = """
 }
 .badge-mir {
   background: #3498db;
-  color: #fff;
+  color: #ffffff;
 }
 .badge-llm {
   background: #9b59b6;
-  color: #fff;
+  color: #ffffff;
 }
 .badge-year {
   background: #ecf0f1;
   color: #7f8c8d;
 }
 
-/* Pregunta */
+/* ── Pregunta ── */
 .question {
   font-size: 17px;
   font-weight: 500;
@@ -98,7 +146,7 @@ CARD_CSS = """
   border-left: 4px solid #3498db;
 }
 
-/* Imagen */
+/* ── Imagen ── */
 .image-container {
   text-align: center;
   margin: 16px 0;
@@ -109,12 +157,12 @@ CARD_CSS = """
 }
 .image-container img {
   max-width: 100%;
-  max-height: 380px;
+  max-height: 400px;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
 }
 
-/* Opciones */
+/* ── Opciones ── */
 .options {
   list-style: none;
   padding: 0;
@@ -123,7 +171,7 @@ CARD_CSS = """
 .option-item {
   padding: 10px 16px;
   margin-bottom: 8px;
-  background: #fff;
+  background: #ffffff;
   border: 1px solid #e8e8e8;
   border-radius: 8px;
   transition: all 0.2s;
@@ -152,48 +200,48 @@ CARD_CSS = """
   flex: 1;
 }
 
-/* Respuesta correcta (cara trasera) */
+/* ── Respuesta correcta (cara trasera) ── */
 .correct-answer {
-  margin-top: 20px;
-  padding: 14px 18px;
+  margin-top: 24px;
+  padding: 16px 20px;
   background: linear-gradient(135deg, #e8f8f5, #d5f5e3);
   border: 2px solid #27ae60;
-  border-radius: 10px;
+  border-radius: 12px;
   text-align: center;
 }
 .correct-answer .label {
   font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   color: #27ae60;
   font-weight: 700;
 }
 .correct-answer .answer-text {
-  font-size: 17px;
-  font-weight: 600;
-  color: #1e8449;
-  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a7a42;
+  margin-top: 6px;
 }
 
-/* Referencia / fuente */
+/* ── Referencia / fuente ── */
 .reference {
   margin-top: 16px;
   padding: 10px 14px;
   background: #f8f9fa;
   border-radius: 8px;
   font-size: 12px;
-  color: #95a5a6;
+  color: #7f8c8d;
   border: 1px solid #e8e8e8;
 }
 .reference strong {
-  color: #7f8c8d;
+  color: #5a6a7a;
 }
 
-/* Separador en cara trasera */
+/* ── Separador en cara trasera ── */
 .back-divider {
-  margin: 20px 0 10px;
+  margin: 24px 0 12px;
   border: 0;
-  border-top: 1px dashed #dcdde1;
+  border-top: 1px dashed #bdc3c7;
 }
 """
 
@@ -287,40 +335,6 @@ def create_model() -> genanki.Model:
 
 # ─── Utilidades ───────────────────────────────────────────────────────────────
 
-def decode_base64_image(b64_data: str, img_id: str, temp_dir: Path) -> str | None:
-    """
-    Decodifica una imagen base64 y la guarda como archivo.
-    Retorna el nombre del archivo (para Anki) o None si falla.
-    """
-    try:
-        # Detectar formato
-        match = re.match(r"data:image/(\w+);base64,(.+)", b64_data)
-        if match:
-            fmt = match.group(1)
-            b64_str = match.group(2)
-        else:
-            # Intentar detectar por cabecera
-            b64_str = b64_data
-            if b64_data.startswith("/9j/"):
-                fmt = "jpeg"
-            elif b64_data.startswith("iVBOR"):
-                fmt = "png"
-            elif b64_data.startswith("R0lG"):
-                fmt = "gif"
-            else:
-                fmt = "png"  # fallback
-
-        img_bytes = base64.b64decode(b64_str)
-        fname = f"mir_img_{img_id}.{fmt}"
-        img_path = temp_dir / fname
-        with open(img_path, "wb") as f:
-            f.write(img_bytes)
-        return fname
-    except Exception as e:
-        log.warning(f"  ⚠ Error decodificando imagen: {e}")
-        return None
-
-
 def opcion_letter(n: int) -> str:
     """Convierte número de opción a letra (1→A, 2→B, etc.)."""
     return chr(64 + n)  # 1→A, 2→B, 3→C, 4→D
@@ -378,121 +392,112 @@ def convert_jsonl_to_anki(
     deck = genanki.Deck(deck_id, deck_name)
     model = create_model()
 
-    # Directorio temporal para imágenes
-    with tempfile.TemporaryDirectory(prefix="anki_imgs_") as tmp_dir:
-        temp_path = Path(tmp_dir)
-        media_files = []
+    total = len(questions)
+    for idx, q in enumerate(questions, 1):
+        if idx % 50 == 0 or idx == 1 or idx == total:
+            log.info(f"  [{idx}/{total}] Procesando pregunta...")
 
-        total = len(questions)
-        for idx, q in enumerate(questions, 1):
-            if idx % 50 == 0 or idx == 1 or idx == total:
-                log.info(f"  [{idx}/{total}] Procesando pregunta...")
+        pregunta = q.get("pregunta", "")
+        opciones = [
+            q.get("opcion_1", ""),
+            q.get("opcion_2", ""),
+            q.get("opcion_3", ""),
+            q.get("opcion_4", ""),
+        ]
+        resp_correcta = q.get("respuesta_correcta", 1)
 
-            pregunta = q.get("pregunta", "")
-            opciones = [
-                q.get("opcion_1", ""),
-                q.get("opcion_2", ""),
-                q.get("opcion_3", ""),
-                q.get("opcion_4", ""),
-            ]
-            resp_correcta = q.get("respuesta_correcta", 1)
+        # Validar respuesta
+        if not isinstance(resp_correcta, int) or resp_correcta < 1 or resp_correcta > 4:
+            resp_correcta = 1
 
-            # Validar respuesta
-            if not isinstance(resp_correcta, int) or resp_correcta < 1 or resp_correcta > 4:
-                resp_correcta = 1
+        resp_texto = opciones[resp_correcta - 1]
+        resp_label = f"{opcion_letter(resp_correcta)}) {resp_texto}"
 
-            resp_texto = opciones[resp_correcta - 1]
-            resp_label = f"{opcion_letter(resp_correcta)}) {resp_texto}"
+        # Origen
+        origen = q.get("origen", "")
+        if origen == "examen_mir":
+            origen_badge = f'<span class="badge badge-mir">📋 MIR</span>'
+        else:
+            origen_badge = f'<span class="badge badge-llm">🤖 Generada</span>'
 
-            # Origen
-            origen = q.get("origen", "")
-            if origen == "examen_mir":
-                origen_badge = f'<span class="badge badge-mir">📋 MIR</span>'
+        year = q.get("year")
+        year_str = str(year) if year else ""
+
+        fuente = q.get("fuente", "")
+        # Limitar longitud
+        if len(fuente) > 60:
+            fuente = "..." + fuente[-57:]
+
+        # Referencia (texto_referencia para generadas, year para MIR)
+        referencia = q.get("texto_referencia", "")
+        if not referencia and year:
+            referencia = f"Examen MIR {year}, pregunta {q.get('num_pregunta', '')}"
+        if not referencia and fuente:
+            referencia = f"Fuente: {fuente}"
+        # Limitar longitud de referencia
+        if len(referencia) > 300:
+            referencia = referencia[:297] + "..."
+
+        # Imagen — embebida como data URI directamente en el HTML
+        imagen_field = ""
+        img_obj = q.get("imagen")
+        if img_obj and isinstance(img_obj, dict) and "data" in img_obj:
+            b64 = img_obj["data"]
+            # Asegurar prefijo data URI
+            if b64.startswith("data:"):
+                imagen_field = b64
+            elif b64.startswith("/9j/"):
+                imagen_field = "data:image/jpeg;base64," + b64
+            elif b64.startswith("iVBOR"):
+                imagen_field = "data:image/png;base64," + b64
+            elif b64.startswith("R0lG"):
+                imagen_field = "data:image/gif;base64," + b64
             else:
-                origen_badge = f'<span class="badge badge-llm">🤖 Generada</span>'
+                imagen_field = "data:image/png;base64," + b64
 
-            year = q.get("year")
-            year_str = str(year) if year else ""
+        # Crear nota
+        note = genanki.Note(
+            model=model,
+            fields=[
+                pregunta,
+                opciones[0],
+                opciones[1],
+                opciones[2],
+                opciones[3],
+                str(resp_correcta),
+                resp_label,
+                imagen_field,
+                origen_badge,
+                year_str,
+                fuente,
+                referencia,
+            ],
+        )
+        deck.add_note(note)
 
-            fuente = q.get("fuente", "")
-            # Limitar longitud
-            if len(fuente) > 60:
-                fuente = "..." + fuente[-57:]
+    if len(deck.notes) == 0:
+        log.warning("  ⚠ No se generaron notas.")
+        return None
 
-            # Referencia (texto_referencia para generadas, year para MIR)
-            referencia = q.get("texto_referencia", "")
-            if not referencia and year:
-                referencia = f"Examen MIR {year}, pregunta {q.get('num_pregunta', '')}"
-            if not referencia and fuente:
-                referencia = f"Fuente: {fuente}"
-            # Limitar longitud de referencia
-            if len(referencia) > 300:
-                referencia = referencia[:297] + "..."
+    # Guardar paquete
+    if output_dir is None:
+        output_dir = BASE_DIR / "tarjetas_anki"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-            # Imagen
-            imagen_field = ""
-            img_obj = q.get("imagen")
-            if img_obj and isinstance(img_obj, dict) and "data" in img_obj:
-                b64 = img_obj["data"]
-                # Si empieza con /9j/ o similar pero sin prefijo data:, añadirlo
-                if not b64.startswith("data:"):
-                    # Detectar por cabecera
-                    if b64.startswith("/9j/"):
-                        b64 = "data:image/jpeg;base64," + b64
-                    elif b64.startswith("iVBOR"):
-                        b64 = "data:image/png;base64," + b64
-                    else:
-                        b64 = "data:image/png;base64," + b64
+    # Nombre del archivo
+    apkg_name = jsonl_path.stem + ".apkg"
+    apkg_path = output_dir / apkg_name
 
-                fname = decode_base64_image(b64, f"{jsonl_path.stem}_{idx}", temp_path)
-                if fname:
-                    media_files.append(str(temp_path / fname))
-                    imagen_field = fname
+    package = genanki.Package(deck)
 
-            # Crear nota
-            note = genanki.Note(
-                model=model,
-                fields=[
-                    pregunta,
-                    opciones[0],
-                    opciones[1],
-                    opciones[2],
-                    opciones[3],
-                    str(resp_correcta),
-                    resp_label,
-                    imagen_field,
-                    origen_badge,
-                    year_str,
-                    fuente,
-                    referencia,
-                ],
-            )
-            deck.add_note(note)
+    package.write_to_file(str(apkg_path))
 
-        if len(deck.notes) == 0:
-            log.warning("  ⚠ No se generaron notas.")
-            return None
+    log.info(f"  ✅ Mazo creado: {apkg_path}")
+    log.info(f"     Notas: {len(deck.notes)}")
+    img_count = sum(1 for q in questions if q.get("imagen"))
+    log.info(f"     Con imágenes: {img_count}")
 
-        # Guardar paquete
-        if output_dir is None:
-            output_dir = BASE_DIR / "tarjetas_anki"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Nombre del archivo
-        apkg_name = jsonl_path.stem + ".apkg"
-        apkg_path = output_dir / apkg_name
-
-        package = genanki.Package(deck)
-        if media_files:
-            package.media_files = media_files
-
-        package.write_to_file(str(apkg_path))
-
-        log.info(f"  ✅ Mazo creado: {apkg_path}")
-        log.info(f"     Notas: {len(deck.notes)}")
-        log.info(f"     Imágenes: {len(media_files)}")
-
-        return apkg_path
+    return apkg_path
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
